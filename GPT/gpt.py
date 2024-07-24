@@ -1,9 +1,8 @@
 import torch.nn.functional as F
 import torch.nn as nn
 import torch
-import random
-import matplotlib.pyplot as plt
-
+import time
+from tqdm import tqdm
 
 torch.manual_seed(2137)
 
@@ -126,7 +125,7 @@ class FeedForward(nn.Module):
         self.net = nn.Sequential(
             nn.Linear(n_embed, n_embed * 4),
             nn.ReLU(),
-            nn.Linear(n_embed * 4, n_embed),    # projection layer
+            nn.Linear(n_embed * 4, n_embed),  # projection layer
             nn.Dropout(dropout),
         )
 
@@ -156,7 +155,9 @@ class TransformerModel(nn.Module):
         # each token directly reads off the logits for the next token from a lookup table
         self.token_embedding_table = nn.Embedding(vocab_size, n_embed)
         self.position_embedding_table = nn.Embedding(block_size, n_embed)
-        self.blocks = nn.Sequential(*[Block(n_embed, num_heads) for _ in range(num_layers)])
+        self.blocks = nn.Sequential(
+            *[Block(n_embed, num_heads) for _ in range(num_layers)]
+        )
         self.ln_f = nn.LayerNorm(n_embed)
         self.lm_head = nn.Linear(n_embed, vocab_size)
 
@@ -204,9 +205,13 @@ m = model.to(device)
 
 optimizer = torch.optim.AdamW(m.parameters(), lr=learning_rate)
 
-print(" Using device:", device)
+print(" Using device: ", device)
+print(" Number of parameters: ", sum(p.numel() for p in m.parameters()))
 
-for iter in range(max_iters):
+progress_bar = tqdm(range(max_iters), desc="Training", unit="iter")
+start_time = time.time()
+
+for iter in progress_bar:
 
     # every once in a while evaluate the loss on train and val sets
     if iter % eval_interval == 0:
@@ -224,6 +229,18 @@ for iter in range(max_iters):
     loss.backward()
     optimizer.step()
 
+    progress_bar.set_postfix({"loss": f"{loss.item():.4f}"})
+
+progress_bar.close()
+print("Done!, Training took ", time.time() - start_time, " seconds")
+
 # generate from the model
 context = torch.zeros((1, 1), dtype=torch.long, device=device)
 print(decode(m.generate(context, max_new_tokens=1000)[0].tolist()))
+
+# save the model
+torch.save(m.state_dict(), "GPT/gpt.pt")
+
+# save the results of generation to a file
+with open("GPT/output.txt", "w", encoding="utf-8") as f:
+    f.write(decode(m.generate(context, max_new_tokens=10_000)[0].tolist()))
