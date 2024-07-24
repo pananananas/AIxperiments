@@ -107,9 +107,12 @@ class MultiHeadAttention(nn.Module):
     def __init__(self, num_heads, head_size):
         super().__init__()
         self.heads = nn.ModuleList([Head(head_size) for _ in range(num_heads)])
+        self.proj = nn.Linear(head_size * num_heads, n_embed)
 
     def forward(self, x):
-        return torch.cat([h(x) for h in self.heads], dim=-1)
+        out = torch.cat([h(x) for h in self.heads], dim=-1)
+        out = self.proj(out)
+        return out
 
 
 class FeedForward(nn.Module):
@@ -118,8 +121,9 @@ class FeedForward(nn.Module):
     def __init__(self, n_embed):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(n_embed,n_embed),
+            nn.Linear(n_embed, n_embed * 4),
             nn.ReLU(),
+            nn.Linear(n_embed * 4, n_embed),    # projection layer
         )
 
     def forward(self, x):
@@ -132,12 +136,12 @@ class Block(nn.Module):
         head_size = n_embed // num_heads
         self.sa = MultiHeadAttention(num_heads, head_size)
         self.ffwd = FeedForward(n_embed)
-    
+
     def forward(self, x):
-        x = self.sa(x)
-        x = self.ffwd(x)
+        x = x + self.sa(x)
+        x = x + self.ffwd(x)
         return x
-    
+
 
 class BigramLanguageModel(nn.Module):
 
@@ -203,7 +207,9 @@ for iter in range(max_iters):
     # every once in a while evaluate the loss on train and val sets
     if iter % eval_interval == 0:
         losses = estimate_loss()
-        print(f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
+        print(
+            f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}"
+        )
 
     # sample a batch of data
     xb, yb = get_batch("train")
