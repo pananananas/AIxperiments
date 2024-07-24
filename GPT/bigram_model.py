@@ -1,13 +1,11 @@
 import torch.nn.functional as F
 import torch.nn as nn
 import torch
-
-torch.set_default_device("cpu")
 import random
 import matplotlib.pyplot as plt
 
 
-torch.manual_seed(1337)
+torch.manual_seed(2137)
 
 batch_size = 32
 block_size = 8
@@ -16,6 +14,7 @@ eval_interval = 100
 learning_rate = 1e-3
 device = "mps"
 eval_iters = 200
+n_embed = 32
 
 
 # read it in to inspect it
@@ -73,15 +72,17 @@ def estimate_loss():
 
 class BigramLanguageModel(nn.Module):
 
-    def __init__(self, vocab_size):
+    def __init__(self):
         super().__init__()
         # each token directly reads off the logits for the next token from a lookup table
-        self.token_embedding_table = nn.Embedding(vocab_size, vocab_size)
+        self.token_embedding_table = nn.Embedding(vocab_size, n_embed)
+        self.lm_head = nn.Linear(n_embed, vocab_size)
 
     def forward(self, idx, targets=None):
 
-        # idx and targets are both (B,T) tensor of integers
-        logits = self.token_embedding_table(idx)  # (B,T,C)
+        tok_emb = self.token_embedding_table(idx)  # (B,T,C)
+        logits = self.lm_head(tok_emb)  # (B,T,vocab_size)
+
 
         if targets is None:
             loss = None
@@ -109,20 +110,19 @@ class BigramLanguageModel(nn.Module):
         return idx
 
 
-model = BigramLanguageModel(vocab_size)
+model = BigramLanguageModel()
 m = model.to(device)
 
 optimizer = torch.optim.AdamW(m.parameters(), lr=learning_rate)
 
+print(" Using device:", device)
 
 for iter in range(max_iters):
 
     # every once in a while evaluate the loss on train and val sets
     if iter % eval_interval == 0:
         losses = estimate_loss()
-        print(
-            f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}"
-        )
+        print(f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
 
     # sample a batch of data
     xb, yb = get_batch("train")
