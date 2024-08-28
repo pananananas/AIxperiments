@@ -1,9 +1,10 @@
+# %% Imports
 import torch.nn.functional as F
 import torch.nn as nn
 import torch
 import random
-import matplotlib.pyplot as plt
 
+# %% Parameters
 
 torch.manual_seed(2137)
 
@@ -16,6 +17,7 @@ device = "mps"
 eval_iters = 200
 n_embed = 32
 
+# %% Data
 
 # read it in to inspect it
 with open(
@@ -44,6 +46,7 @@ n = int(0.9 * len(data))  # first 90% will be train, rest val
 train_data = data[:n]
 val_data = data[n:]
 
+# %% Model
 
 def get_batch(split):
     # generate a small batch if data if inputs x and targets y
@@ -80,7 +83,7 @@ class BigramLanguageModel(nn.Module):
         self.lm_head = nn.Linear(n_embed, vocab_size)
 
     def forward(self, idx, targets=None):
-        
+
         B, T = idx.shape
 
         tok_emb = self.token_embedding_table(idx)  # (B,T,C)
@@ -112,7 +115,12 @@ class BigramLanguageModel(nn.Module):
             # append sampled index to the running sequence
             idx = torch.cat((idx, idx_next), dim=1)  # (B, T+1)
         return idx
+# %% nowy
+x = torch.tensor([[1, 2, 3], [4, 5, 6]])
+print(x**2)
 
+
+# %% Training
 
 model = BigramLanguageModel()
 m = model.to(device)
