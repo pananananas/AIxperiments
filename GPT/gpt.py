@@ -20,7 +20,7 @@ dropout = 0.2
 
 # read it in to inspect it
 with open(
-    "/Users/ewojcik/Code/AIxperiments/data/input.txt", "r", encoding="utf-8"
+    "/Users/ewojcik/Code/ai/AIxperiments/data/input.txt", "r", encoding="utf-8"
 ) as f:
     text = f.read()
 
