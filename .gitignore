@@ -1,5 +1,5 @@
 /3D/LLFF_Data
 .DS_Store
-/Images/depth_anything/__pycache__
-/Images/imgs
-/Images/output
+/Images/Depth\ Estimation/depth_anything/__pycache__
+/Images/Depth\ Estimation/imgs
+/Images/Depth\ Estimation/output
