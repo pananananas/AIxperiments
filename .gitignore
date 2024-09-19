@@ -3,3 +3,7 @@
 /Images/Depth\ Estimation/depth_anything/__pycache__
 /Images/Depth\ Estimation/imgs
 /Images/Depth\ Estimation/output
+/Images/StableDiffusion/data
+/Images/StableDiffusion/images
+/Images/StableDiffusion/sd/__pycache__
+/Images/StableDiffusion/src/__pycache__
