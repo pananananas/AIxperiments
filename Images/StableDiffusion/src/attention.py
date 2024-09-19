@@ -71,7 +71,7 @@ class CrossAttention(nn.Module):
         weight /= math.sqrt(self.d_head)
         weight = F.softmax(weight, dim=-1)
         output = weight @ v
-        output = output.transpose(1, 2).continuous()
+        output = output.transpose(1, 2).contiguous()
         output = output.view(input_shape)
         output = self.out_proj(output)
         
