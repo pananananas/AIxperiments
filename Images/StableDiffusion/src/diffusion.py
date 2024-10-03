@@ -252,7 +252,7 @@ class UNET(nn.Module):
             # (Batch_Size, 2560, Height / 64, Width / 64) -> (Batch_Size, 1280, Height / 64, Width / 64)
             SwitchSequential(UNET_ResidualBlock(2560, 1280)),
             
-            # (Batch_Size, 2560, Height / 64, Width / 64) -> (Batch_Size, 1280, Height / 64, Width / 64) -> (Batch_Size, 1280, Height / 32, Width / 32) 
+            # (Batch_Size, 2560, Height / 64, Width / 64) -> (Batch_Size, 1280, Height / 32, Width / 32) 
             SwitchSequential(UNET_ResidualBlock(2560, 1280), Upsample(1280)),
             
             # (Batch_Size, 2560, Height / 32, Width / 32) -> (Batch_Size, 1280, Height / 32, Width / 32) -> (Batch_Size, 1280, Height / 32, Width / 32)
@@ -261,7 +261,7 @@ class UNET(nn.Module):
             # (Batch_Size, 2560, Height / 32, Width / 32) -> (Batch_Size, 1280, Height / 32, Width / 32) -> (Batch_Size, 1280, Height / 32, Width / 32)
             SwitchSequential(UNET_ResidualBlock(2560, 1280), UNET_AttentionBlock(8, 160)),
             
-            # (Batch_Size, 1920, Height / 32, Width / 32) -> (Batch_Size, 1280, Height / 32, Width / 32) -> (Batch_Size, 1280, Height / 32, Width / 32) -> (Batch_Size, 1280, Height / 16, Width / 16)
+            # (Batch_Size, 1920, Height / 32, Width / 32) -> (Batch_Size, 1280, Height / 32, Width / 32) -> (Batch_Size, 1280, Height / 16, Width / 16)
             SwitchSequential(UNET_ResidualBlock(1920, 1280), UNET_AttentionBlock(8, 160), Upsample(1280)),
             
             # (Batch_Size, 1920, Height / 16, Width / 16) -> (Batch_Size, 640, Height / 16, Width / 16) -> (Batch_Size, 640, Height / 16, Width / 16)
@@ -330,7 +330,11 @@ class Diffusion(nn.Module):
         self.time_embedding = TimeEmbedding(320)
         self.unet = UNET()
         self.final = UNET_OutputLayer(320, 4)
-    
+        
+        # Set memory format to channels_last for better performance on MPS
+        self.unet = self.unet.to(memory_format=torch.channels_last)
+        self.final = self.final.to(memory_format=torch.channels_last)
+
     def forward(self, latent, context, time):
         # latent: (Batch_Size, 4, Height / 8, Width / 8)
         # context: (Batch_Size, Seq_Len, Dim)

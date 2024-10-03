@@ -1,3 +1,5 @@
+# pipeline.py
+
 import torch
 import numpy as np
 from tqdm import tqdm
@@ -42,6 +44,12 @@ def generate(
         clip = models["clip"]
         clip.to(device)
         
+        # Determine the dtype based on model parameters
+        if next(clip.parameters()).dtype == torch.float16:
+            dtype = torch.float16
+        else:
+            dtype = torch.float32
+
         if do_cfg:
             # Convert into a list of length Seq_Len=77
             cond_tokens = tokenizer.batch_encode_plus(
@@ -50,7 +58,7 @@ def generate(
             # (Batch_Size, Seq_Len)
             cond_tokens = torch.tensor(cond_tokens, dtype=torch.long, device=device)
             # (Batch_Size, Seq_Len) -> (Batch_Size, Seq_Len, Dim)
-            cond_context = clip(cond_tokens)
+            cond_context = clip(cond_tokens).to(dtype)
             # Convert into a list of length Seq_Len=77
             uncond_tokens = tokenizer.batch_encode_plus(
                 [uncond_prompt], padding="max_length", max_length=77
@@ -58,7 +66,7 @@ def generate(
             # (Batch_Size, Seq_Len)
             uncond_tokens = torch.tensor(uncond_tokens, dtype=torch.long, device=device)
             # (Batch_Size, Seq_Len) -> (Batch_Size, Seq_Len, Dim)
-            uncond_context = clip(uncond_tokens)
+            uncond_context = clip(uncond_tokens).to(dtype)
             # (Batch_Size, Seq_Len, Dim) + (Batch_Size, Seq_Len, Dim) -> (2 * Batch_Size, Seq_Len, Dim)
             context = torch.cat([cond_context, uncond_context])
         else:
@@ -69,35 +77,43 @@ def generate(
             # (Batch_Size, Seq_Len)
             tokens = torch.tensor(tokens, dtype=torch.long, device=device)
             # (Batch_Size, Seq_Len) -> (Batch_Size, Seq_Len, Dim)
-            context = clip(tokens)
+            context = clip(tokens).to(dtype)
         to_idle(clip)
 
         if sampler_name == "ddpm":
             sampler = DDPMSampler(generator)
             sampler.set_inference_timesteps(n_inference_steps)
         else:
-            raise ValueError("Unknown sampler value %s. ")
+            raise ValueError("Unknown sampler value %s. " % sampler_name)
 
         latents_shape = (1, 4, LATENTS_HEIGHT, LATENTS_WIDTH)
 
         if input_image:
             encoder = models["encoder"]
             encoder.to(device)
+            
+            # Ensure encoder is in float16 if models are in float16
+            if next(encoder.parameters()).dtype == torch.float16:
+                encoder_dtype = torch.float16
+            else:
+                encoder_dtype = torch.float32
 
             input_image_tensor = input_image.resize((WIDTH, HEIGHT))
             # (Height, Width, Channel)
             input_image_tensor = np.array(input_image_tensor)
             # (Height, Width, Channel) -> (Height, Width, Channel)
             input_image_tensor = torch.tensor(input_image_tensor, dtype=torch.float32, device=device)
-            # (Height, Width, Channel) -> (Height, Width, Channel)
+            # Rescale
             input_image_tensor = rescale(input_image_tensor, (0, 255), (-1, 1))
-            # (Height, Width, Channel) -> (Batch_Size, Height, Width, Channel)
+            # Add batch dimension
             input_image_tensor = input_image_tensor.unsqueeze(0)
-            # (Batch_Size, Height, Width, Channel) -> (Batch_Size, Channel, Height, Width)
+            # Permute to (Batch, Channel, Height, Width)
             input_image_tensor = input_image_tensor.permute(0, 3, 1, 2)
+            # Convert to appropriate dtype
+            input_image_tensor = input_image_tensor.to(dtype)
 
             # (Batch_Size, 4, Latents_Height, Latents_Width)
-            encoder_noise = torch.randn(latents_shape, generator=generator, device=device)
+            encoder_noise = torch.randn(latents_shape, generator=generator, device=device).to(dtype).to(memory_format=torch.channels_last)
             # (Batch_Size, 4, Latents_Height, Latents_Width)
             latents = encoder(input_image_tensor, encoder_noise)
 
@@ -109,15 +125,21 @@ def generate(
             to_idle(encoder)
         else:
             # (Batch_Size, 4, Latents_Height, Latents_Width)
-            latents = torch.randn(latents_shape, generator=generator, device=device)
+            latents = torch.randn(latents_shape, generator=generator, device=device).to(dtype).to(memory_format=torch.channels_last)
 
         diffusion = models["diffusion"]
         diffusion.to(device)
+        
+        # Ensure diffusion model is in the correct dtype and memory format
+        if next(diffusion.parameters()).dtype == torch.float16:
+            diffusion_dtype = torch.float16
+        else:
+            diffusion_dtype = torch.float32
 
         timesteps = tqdm(sampler.timesteps)
         for i, timestep in enumerate(timesteps):
             # (1, 320)
-            time_embedding = get_time_embedding(timestep).to(device)
+            time_embedding = get_time_embedding(timestep).to(device).to(dtype)
 
             # (Batch_Size, 4, Latents_Height, Latents_Width)
             model_input = latents
@@ -141,8 +163,15 @@ def generate(
 
         decoder = models["decoder"]
         decoder.to(device)
+        
+        # Ensure decoder is in float16 if models are in float16
+        if next(decoder.parameters()).dtype == torch.float16:
+            decoder_dtype = torch.float16
+        else:
+            decoder_dtype = torch.float32
+
         # (Batch_Size, 4, Latents_Height, Latents_Width) -> (Batch_Size, 3, Height, Width)
-        images = decoder(latents)
+        images = decoder(latents).to(decoder_dtype)
         to_idle(decoder)
 
         images = rescale(images, (-1, 1), (0, 255), clamp=True)
@@ -154,9 +183,7 @@ def generate(
 def rescale(x, old_range, new_range, clamp=False):
     old_min, old_max = old_range
     new_min, new_max = new_range
-    x -= old_min
-    x *= (new_max - new_min) / (old_max - old_min)
-    x += new_min
+    x = (x - old_min) * (new_max - new_min) / (old_max - old_min) + new_min
     if clamp:
         x = x.clamp(new_min, new_max)
     return x
