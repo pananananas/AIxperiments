@@ -1,10 +1,10 @@
 /3D/LLFF_Data
 .DS_Store
-/Images/Depth\ Estimation/depth_anything/__pycache__
-/Images/Depth\ Estimation/imgs
-/Images/Depth\ Estimation/output
-/Images/StableDiffusion/data
-/Images/StableDiffusion/images
-/Images/StableDiffusion/sd/__pycache__
-/Images/StableDiffusion/src/__pycache__
-/Images/data
+/DepthEstimation/depth_anything/__pycache__
+/DepthEstimation/imgs
+/DepthEstimation/output
+/StableDiffusion/data
+/StableDiffusion/images
+/StableDiffusion/sd/__pycache__
+/StableDiffusion/src/__pycache__
+/data
