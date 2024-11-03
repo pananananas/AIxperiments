@@ -1,6 +1,3 @@
-# Ended on: https://youtu.be/vAmKB7iPkWw?si=GdNLAegNwRw1mGNP&t=9556
-
-
 from typing import Optional, Tuple, Dict, List, Iterable, Union
 from PIL import Image
 import numpy as np
