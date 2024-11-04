@@ -15,7 +15,7 @@ class SiglipVisionConfig:
       patch_size: int = 16,
       layer_norm_eps: float = 1e-6,
       attention_dropout: float = 0.0,
-      num_image_tekens: int = None,
+      num_image_tekens = None
       ):
     super().__init__()
 
@@ -55,7 +55,7 @@ class SiglipVisionEmbeddings(nn.Module):
       torch.arange(self.num_positions).expand((1, -1)),
       persistent = False,
     )
-  
+
   def forward( self, pixel_values: torch.Tensor) -> torch.Tensor:
     _, _, height, width = pixel_values.shape
 
@@ -65,7 +65,7 @@ class SiglipVisionEmbeddings(nn.Module):
     embeddings = embeddings + self.position_embedding(self.position_ids)
 
     return embeddings
-  
+
 
 class SiglipAttention(nn.Module):
   """Multi-Headed Attention from Attention is All You Need paper"""
@@ -99,7 +99,7 @@ class SiglipAttention(nn.Module):
 
     if attn_weights.size() != (batch_size, self.num_heads, seq_len, seq_len):
       raise ValueError(f"Attention weights should be of size [batch_size, num_heads, seq_len, seq_len], but is:\n {attn_weights.size()}")
-    
+
     attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
 
     attn_weights = nn.functional.dropout(attn_weights, p=self.dropout, training=self.training)
@@ -140,13 +140,13 @@ class SiglipEncoderLayer(nn.Module):
     self.layer_norm1 = nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
     self.mlp = SiglipMLP(config)
     self.layer_norm2 = nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
-  
+
   def forward( self, hidden_states: torch.Tensor) -> torch.Tensor:
     residual = hidden_states
 
     hidden_states = self.layer_norm1(hidden_states)
     hidden_states, _ = self.selfattn(hidden_states)
-    
+
     hidden_states = hidden_states + residual
 
     residual = hidden_states
@@ -173,7 +173,7 @@ class SiglipEncoder(nn.Module):
 
     for encoder_layer in self.layers:
       hidden_states = encoder_layer(hidden_states)
-    
+
     return hidden_states
 
 
@@ -189,14 +189,14 @@ class SiglipVisionTransformer(nn.Module):
     self.encoder = SiglipEncoder(config)
 
     self.post_layernorm = nn.LayerNorm(embed_dim, eps=config.layer_norm_eps)
-  
+
 
   def forward(self, pixel_values: torch.Tensor) -> torch.Tensor:
-    
+
     hidden_states = self.embeddings(pixel_values)
-    
+
     last_hidden_state = self.encoder(inputs_embeds=hidden_states)
-    last_hidden_state = self.post_layernorm(last_hidden_state)  
+    last_hidden_state = self.post_layernorm(last_hidden_state)
 
     return last_hidden_state
 
@@ -209,5 +209,5 @@ class SiglipVisionModel(nn.Module):
     self.vision_model = SiglipVisionTransformer(config)
 
   def forward(self, pixel_values: torch.Tensor) -> Tuple:
-    
+
     return self.vision_model(pixel_values=pixel_values)
