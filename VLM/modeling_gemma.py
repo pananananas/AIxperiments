@@ -92,7 +92,7 @@ class PaliGemmaConfig:
     self.is_encoder_decoder = False
     self.pad_token_id = pad_token_id
 
-    self.vision_config = SiglipVisionConfig(**vision_config)
+    self.vision_config = SiglipVisionConfig(vision_config)
     self.text_config = text_config
 
     self.text_config = GemmaConfig(**text_config, pad_token_id=pad_token_id)
@@ -145,7 +145,8 @@ def rotate_half(x):
     x2 = x[..., x.shape[-1] // 2 :] # Takes the second half of the last dimension
     return torch.cat((-x2, x1), dim=-1)
 
-def apply_rotary_pos_emb(q, k, cos, sin, unsqueeze_dim=1):
+
+def apply_rotary_pos_emb(q, k, cos, sin, unsqueeze_dim = 1):
     cos = cos.unsqueeze(unsqueeze_dim) # Add the head dimension
     sin = sin.unsqueeze(unsqueeze_dim) # Add the head dimension
     # Apply the formula (34) of the Rotary Positional Encoding paper.

@@ -8,3 +8,5 @@
 /StableDiffusion/sd/__pycache__
 /StableDiffusion/src/__pycache__
 /data
+/VLM/weights
+/VLM/__pycache__

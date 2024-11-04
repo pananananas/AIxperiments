@@ -40,11 +40,11 @@ class SiglipVisionEmbeddings(nn.Module):
     self.patch_size = config.patch_size
 
     self.patch_embedding = nn.Conv2d(
-      in_channels = config.num_channels,
-      out_channels = self.embed_dim,
-      kernel_size = self.patch_size,
-      stride = self.patch_size,
-      padding = "valid"    # "valid" means no padding
+      in_channels=config.num_channels,
+      out_channels=self.embed_dim,
+      kernel_size=self.patch_size,
+      stride=self.patch_size,
+      padding="valid",  # This indicates no padding is added
     )
 
     self.num_patches = (self.image_size // self.patch_size) ** 2
@@ -53,10 +53,10 @@ class SiglipVisionEmbeddings(nn.Module):
     self.register_buffer(
       "position_ids",
       torch.arange(self.num_positions).expand((1, -1)),
-      persistent = False,
+      persistent=False,
     )
 
-  def forward( self, pixel_values: torch.Tensor) -> torch.Tensor:
+  def forward(self, pixel_values: torch.Tensor) -> torch.Tensor:
     _, _, height, width = pixel_values.shape
 
     patch_embeds = self.patch_embedding(pixel_values)
